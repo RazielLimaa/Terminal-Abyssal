@@ -1,4 +1,3 @@
-
 import { Level, Entity, Position } from '../types/game';
 import Prando from 'prando';
 
@@ -29,12 +28,10 @@ export function generateLevel(width: number, height: number, seed: number, floor
   const frontier: Position[] = [{x: startX, y: startY}];
   
   while (frontier.length > 0) {
-    // Select a random cell from the frontier
     const randomIndex = Math.floor(rng.next() * frontier.length);
     const current = frontier[randomIndex];
     frontier.splice(randomIndex, 1);
     
-    // Check neighbors at distance 2
     const neighbors: Position[] = [];
     
     for (const [dx, dy] of DIRS) {
@@ -47,19 +44,12 @@ export function generateLevel(width: number, height: number, seed: number, floor
     }
     
     if (neighbors.length > 0) {
-      // Add current cell back to frontier
       frontier.push(current);
-      
-      // Choose random neighbor
       const next = neighbors[Math.floor(rng.next() * neighbors.length)];
       
-      // Remove wall between current and neighbor
       map[current.y + Math.sign(next.y - current.y)][current.x + Math.sign(next.x - current.x)] = 0;
-      
-      // Mark neighbor as part of maze
       map[next.y][next.x] = 0;
       
-      // Add neighbor to frontier
       frontier.push(next);
     }
   }
@@ -72,7 +62,6 @@ export function generateLevel(width: number, height: number, seed: number, floor
     const roomX = 1 + Math.floor(rng.next() * (width - roomWidth - 2));
     const roomY = 1 + Math.floor(rng.next() * (height - roomHeight - 2));
     
-    // Carve room
     for (let y = roomY; y < roomY + roomHeight; y++) {
       for (let x = roomX; x < roomX + roomWidth; x++) {
         if (y >= 0 && y < height && x >= 0 && x < width) {
@@ -82,15 +71,32 @@ export function generateLevel(width: number, height: number, seed: number, floor
     }
   }
   
-  // Create doors and items (represented as entities)
   const entities: Entity[] = [];
   
-  // Add exit door
+  // Add exit door (PERTO do jogador)
   let exitX, exitY;
+  const maxDistance = 8; // máximo de distância do jogador para o portal
+  let attempts = 0;
   do {
-    exitX = 1 + Math.floor(rng.next() * (width - 2));
-    exitY = 1 + Math.floor(rng.next() * (height - 2));
-  } while (map[exitY][exitX] !== 0 || (exitX === startX && exitY === startY));
+    const dx = Math.floor(rng.next() * (maxDistance * 2 + 1)) - maxDistance;
+    const dy = Math.floor(rng.next() * (maxDistance * 2 + 1)) - maxDistance;
+    
+    exitX = startX + dx;
+    exitY = startY + dy;
+    
+    attempts++;
+    if (attempts > 50) {
+      // Se não achar rápido, libera pra qualquer lugar
+      exitX = 1 + Math.floor(rng.next() * (width - 2));
+      exitY = 1 + Math.floor(rng.next() * (height - 2));
+      break;
+    }
+  } while (
+    exitX < 1 || exitX >= width - 1 ||
+    exitY < 1 || exitY >= height - 1 ||
+    map[exitY][exitX] !== 0 ||
+    (exitX === startX && exitY === startY)
+  );
   
   entities.push({
     id: 'exit',
@@ -157,7 +163,6 @@ export function generateLevel(width: number, height: number, seed: number, floor
 }
 
 export function findValidStartPosition(level: Level): Position {
-  // Find a position that isn't a wall and doesn't have entities
   for (let y = 1; y < level.height - 1; y++) {
     for (let x = 1; x < level.width - 1; x++) {
       if (level.map[y][x] === 0 && !level.entities.some(e => e.x === x && e.y === y)) {
@@ -166,7 +171,6 @@ export function findValidStartPosition(level: Level): Position {
     }
   }
   
-  // Fallback to first non-wall position
   for (let y = 1; y < level.height - 1; y++) {
     for (let x = 1; x < level.width - 1; x++) {
       if (level.map[y][x] === 0) {
@@ -175,6 +179,5 @@ export function findValidStartPosition(level: Level): Position {
     }
   }
   
-  // Last resort
   return { x: 1, y: 1 };
 }
